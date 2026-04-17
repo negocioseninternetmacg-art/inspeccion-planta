@@ -1,185 +1,198 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Inspección de Planta</title>
+    <meta charset="UTF-8">
+    <title>Sistema de Gestión de Mantenimiento e Inocuidad</title>
+    <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
+    <style>
+        :root {
+            --primary: #1F3A5F;
+            --punto-size: 8px; 
+            --color-alta: #ff0000;   /* Rojo */
+            --color-media: #ffcc00;  /* Amarillo */
+            --color-baja: #00cc44;   /* Verde */
+        }
 
-<!-- Librería de zoom -->
-<script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; background: #e9ecef; }
+        
+        #plano-section { flex: 1; position: relative; background: #2c3e50; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        #zoom-wrapper { position: relative; cursor: crosshair; display: inline-block; }
+        #plano { display: block; max-height: 100vh; width: auto; }
 
-<style>
-body {
-  font-family: Arial;
-  margin: 0;
-  display: flex;
-}
+        .punto-registrado {
+            position: absolute;
+            width: var(--punto-size);
+            height: var(--punto-size);
+            border-radius: 50%;
+            border: 1px solid white;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
+        }
 
-#plano-container {
-  position: relative;
-  width: 70%;
-  height: 100vh;
-  overflow: hidden;
-  background: #ddd;
-}
-
-#zoom-wrapper {
-  position: relative;
-}
-
-#plano {
-  width: 100%;
-  cursor: crosshair;
-  display: block;
-}
-
-.punto {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  background: red;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-}
-
-#formulario {
-  width: 30%;
-  padding: 20px;
-  background: #f4f4f4;
-  overflow-y: auto;
-}
-
-input, select, textarea {
-  width: 100%;
-  margin-bottom: 10px;
-  padding: 5px;
-}
-
-button {
-  padding: 10px;
-  width: 100%;
-  background: #1F3A5F;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-#lista {
-  margin-top: 20px;
-}
-</style>
+        #panel-registro { width: 360px; background: white; display: flex; flex-direction: column; box-shadow: -3px 0 10px rgba(0,0,0,0.2); z-index: 20; }
+        .header { background: var(--primary); color: white; padding: 15px; font-weight: bold; text-align: center; }
+        .formulario { padding: 20px; flex-grow: 1; overflow-y: auto; }
+        
+        .campo { margin-bottom: 12px; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: #333; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        
+        .btn-guardar { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        .btn-reset { background: none; border: none; color: #e74c3c; text-decoration: underline; cursor: pointer; font-size: 0.8rem; margin-top: 15px; width: 100%; }
+        
+        #coords-info { font-size: 0.75rem; color: #666; background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid var(--primary); }
+    </style>
 </head>
-
 <body>
 
-<!-- PLANO -->
-<div id="plano-container">
-  <div id="zoom-wrapper">
-    <img src="plano.png" id="plano">
-  </div>
+<div id="plano-section">
+    <div id="zoom-wrapper">
+        <img src="plano.png" id="plano">
+        <div id="capa-puntos"></div>
+    </div>
 </div>
 
-<!-- FORMULARIO -->
-<div id="formulario">
-  <h3>Registrar Observación</h3>
+<div id="panel-registro">
+    <div class="header">Registro de Inspección</div>
+    <div class="formulario">
+        <div id="coords-info">Haz clic en el plano para marcar la ubicación</div>
 
-  <label>Tipo</label>
-  <select id="tipo">
-    <option>Civil</option>
-    <option>Mecánico</option>
-    <option>Eléctrico</option>
-    <option>Seguridad</option>
-  </select>
+        <div class="campo">
+            <label>Sistema / Especialidad</label>
+            <select id="sistema">
+                <option value="Civil">Infraestructura Civil</option>
+                <option value="Mecánico">Mecánico</option>
+                <option value="Eléctrico">Eléctrico</option>
+                <option value="Seguridad">Seguridad Industrial</option>
+            </select>
+        </div>
 
-  <label>Prioridad</label>
-  <select id="prioridad">
-    <option>Alta</option>
-    <option>Media</option>
-    <option>Baja</option>
-  </select>
+        <div class="campo">
+            <label>Criticidad (Color en Mapa)</label>
+            <select id="criticidad">
+                <option value="Alta">Alta (Rojo)</option>
+                <option value="Media">Media (Amarillo)</option>
+                <option value="Baja">Baja (Verde)</option>
+            </select>
+        </div>
 
-  <label>Descripción</label>
-  <textarea id="descripcion"></textarea>
+        <div class="campo">
+            <label>Tag de Equipo / Elemento</label>
+            <input type="text" id="tag" placeholder="Ej: Silo S-06 o Motor M-01">
+        </div>
 
-  <button onclick="guardar()">Guardar</button>
+        <div class="campo">
+            <label>Descripción del Hallazgo</label>
+            <textarea id="descripcion" rows="4"></textarea>
+        </div>
 
-  <div id="lista"></div>
+        <button class="btn-guardar" onclick="guardarDato()">Guardar Hallazgo</button>
+        
+        <button class="btn-reset" onclick="limpiarBaseDatos()">Borrar todos los registros del plano</button>
+    </div>
 </div>
 
 <script>
-let x = 0;
-let y = 0;
+    const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycbxLFBYYKR8wNhnNbRbNunsz1b1nh-IbQqHC86doIxqM3NPcFNudTHk1NpqbazDIfIv3/exec";
+    const wrapper = document.getElementById('zoom-wrapper');
+    const plano = document.getElementById('plano');
+    const capaPuntos = document.getElementById('capa-puntos');
+    
+    let tempX = 0, tempY = 0;
 
-const plano = document.getElementById("plano");
-const container = document.getElementById("plano-container");
+    const pz = Panzoom(wrapper, { maxScale: 8, minScale: 0.5, contain: 'outside' });
+    wrapper.parentElement.addEventListener('wheel', pz.zoomWithWheel);
 
-// ACTIVAR ZOOM
-const elem = document.getElementById('zoom-wrapper');
+    window.onload = dibujarTodosLosPuntos;
 
-const panzoom = Panzoom(elem, {
-  maxScale: 5,
-  minScale: 1
-});
+    plano.addEventListener('click', (e) => {
+        const rect = plano.getBoundingClientRect();
+        const scale = pz.getScale();
+        
+        tempX = ((e.clientX - rect.left) / scale) / plano.offsetWidth * 100;
+        tempY = ((e.clientY - rect.top) / scale) / plano.offsetHeight * 100;
 
-elem.parentElement.addEventListener('wheel', panzoom.zoomWithWheel);
+        document.getElementById('coords-info').innerText = `Ubicación: X ${tempX.toFixed(2)}% | Y ${tempY.toFixed(2)}%`;
+        
+        dibujarTodosLosPuntos();
+        crearMarcadorVisual(tempX, tempY, "cyan", "Selección actual");
+    });
 
-// CLICK EN EL PLANO
-plano.addEventListener("click", function(e) {
-  const rect = plano.getBoundingClientRect();
-  const scale = panzoom.getScale();
+    async function guardarDato() {
+        const desc = document.getElementById('descripcion').value;
+        const crit = document.getElementById('criticidad').value;
+        const sist = document.getElementById('sistema').value;
+        const tag = document.getElementById('tag').value;
 
-  x = (e.clientX - rect.left) / scale;
-  y = (e.clientY - rect.top) / scale;
+        if (!desc || tempX === 0) return alert("Selecciona una ubicación y describe el hallazgo.");
 
-  const punto = document.createElement("div");
-  punto.className = "punto";
+        const nuevaObservacion = {
+            x: tempX.toFixed(2),
+            y: tempY.toFixed(2),
+            sistema: sist,
+            criticidad: crit,
+            tag: tag,
+            descripcion: desc,
+            fecha: new Date().toLocaleString()
+        };
 
-  punto.style.left = (e.clientX - rect.left) + "px";
-  punto.style.top = (e.clientY - rect.top) + "px";
+        // 1. Guardar en Base de Datos Local
+        let baseLocal = JSON.parse(localStorage.getItem('db_mantenimiento')) || [];
+        baseLocal.push(nuevaObservacion);
+        localStorage.setItem('db_mantenimiento', JSON.stringify(baseLocal));
 
-  container.appendChild(punto);
-});
+        // 2. Enviar a Google Sheets
+        try {
+            fetch(URL_GOOGLE_SHEETS, {
+                method: 'POST',
+                mode: 'no-cors',
+                cache: 'no-cache',
+                body: JSON.stringify(nuevaObservacion)
+            });
+        } catch (error) {
+            console.log("Error al enviar a la nube:", error);
+        }
 
-// GUARDAR OBSERVACIÓN
-function guardar() {
-  const tipo = document.getElementById("tipo").value;
-  const prioridad = document.getElementById("prioridad").value;
-  const descripcion = document.getElementById("descripcion").value;
+        // Limpiar para el siguiente
+        tempX = 0; tempY = 0;
+        document.getElementById('descripcion').value = "";
+        document.getElementById('tag').value = "";
+        document.getElementById('coords-info').innerText = "Haz clic en el plano para marcar la ubicación";
+        
+        dibujarTodosLosPuntos();
+        alert("Observación guardada y enviada a Google Sheets.");
+    }
 
-  if (!descripcion) {
-    alert("Escribe una descripción");
-    return;
-  }
+    function dibujarTodosLosPuntos() {
+        capaPuntos.innerHTML = ''; 
+        const baseLocal = JSON.parse(localStorage.getItem('db_mantenimiento')) || [];
+        
+        baseLocal.forEach(obs => {
+            let colorPunto = "var(--color-baja)";
+            if (obs.criticidad === "Alta") colorPunto = "var(--color-alta)";
+            if (obs.criticidad === "Media") colorPunto = "var(--color-media)";
+            
+            crearMarcadorVisual(obs.x, obs.y, colorPunto, `${obs.tag}: ${obs.descripcion}`);
+        });
+    }
 
-  const data = {
-    x, y, tipo, prioridad, descripcion
-  };
+    function crearMarcadorVisual(x, y, color, info) {
+        const dot = document.createElement('div');
+        dot.className = 'punto-registrado';
+        dot.style.left = x + '%';
+        dot.style.top = y + '%';
+        dot.style.backgroundColor = color;
+        dot.title = info;
+        capaPuntos.appendChild(dot);
+    }
 
-  let lista = JSON.parse(localStorage.getItem("observaciones")) || [];
-  lista.push(data);
-
-  localStorage.setItem("observaciones", JSON.stringify(lista));
-
-  mostrar();
-}
-
-// MOSTRAR OBSERVACIONES
-function mostrar() {
-  const lista = JSON.parse(localStorage.getItem("observaciones")) || [];
-  const div = document.getElementById("lista");
-
-  div.innerHTML = "<h4>Observaciones:</h4>";
-
-  lista.forEach(o => {
-    div.innerHTML += `
-      <p>
-      <b>${o.tipo}</b> (${o.prioridad})<br>
-      ${o.descripcion}
-      </p>
-    `;
-  });
-}
-
-mostrar();
+    function limpiarBaseDatos() {
+        if(confirm("¿Seguro que quieres borrar todos los datos históricos del plano?")) {
+            localStorage.removeItem('db_mantenimiento');
+            dibujarTodosLosPuntos();
+        }
+    }
 </script>
 
 </body>
