@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Inspección de Planta</title>
+
+<!-- Librería de zoom -->
+<script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  margin: 0;
+  display: flex;
+}
+
+#plano-container {
+  position: relative;
+  width: 70%;
+  height: 100vh;
+  overflow: hidden;
+  background: #ddd;
+}
+
+#zoom-wrapper {
+  position: relative;
+}
+
+#plano {
+  width: 100%;
+  cursor: crosshair;
+  display: block;
+}
+
+.punto {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: red;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#formulario {
+  width: 30%;
+  padding: 20px;
+  background: #f4f4f4;
+  overflow-y: auto;
+}
+
+input, select, textarea {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 5px;
+}
+
+button {
+  padding: 10px;
+  width: 100%;
+  background: #1F3A5F;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+#lista {
+  margin-top: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- PLANO -->
+<div id="plano-container">
+  <div id="zoom-wrapper">
+    <img src="plano.png" id="plano">
+  </div>
+</div>
+
+<!-- FORMULARIO -->
+<div id="formulario">
+  <h3>Registrar Observación</h3>
+
+  <label>Tipo</label>
+  <select id="tipo">
+    <option>Civil</option>
+    <option>Mecánico</option>
+    <option>Eléctrico</option>
+    <option>Seguridad</option>
+  </select>
+
+  <label>Prioridad</label>
+  <select id="prioridad">
+    <option>Alta</option>
+    <option>Media</option>
+    <option>Baja</option>
+  </select>
+
+  <label>Descripción</label>
+  <textarea id="descripcion"></textarea>
+
+  <button onclick="guardar()">Guardar</button>
+
+  <div id="lista"></div>
+</div>
+
+<script>
+let x = 0;
+let y = 0;
+
+const plano = document.getElementById("plano");
+const container = document.getElementById("plano-container");
+
+// ACTIVAR ZOOM
+const elem = document.getElementById('zoom-wrapper');
+
+const panzoom = Panzoom(elem, {
+  maxScale: 5,
+  minScale: 1
+});
+
+elem.parentElement.addEventListener('wheel', panzoom.zoomWithWheel);
+
+// CLICK EN EL PLANO
+plano.addEventListener("click", function(e) {
+  const rect = plano.getBoundingClientRect();
+  const scale = panzoom.getScale();
+
+  x = (e.clientX - rect.left) / scale;
+  y = (e.clientY - rect.top) / scale;
+
+  const punto = document.createElement("div");
+  punto.className = "punto";
+
+  punto.style.left = (e.clientX - rect.left) + "px";
+  punto.style.top = (e.clientY - rect.top) + "px";
+
+  container.appendChild(punto);
+});
+
+// GUARDAR OBSERVACIÓN
+function guardar() {
+  const tipo = document.getElementById("tipo").value;
+  const prioridad = document.getElementById("prioridad").value;
+  const descripcion = document.getElementById("descripcion").value;
+
+  if (!descripcion) {
+    alert("Escribe una descripción");
+    return;
+  }
+
+  const data = {
+    x, y, tipo, prioridad, descripcion
+  };
+
+  let lista = JSON.parse(localStorage.getItem("observaciones")) || [];
+  lista.push(data);
+
+  localStorage.setItem("observaciones", JSON.stringify(lista));
+
+  mostrar();
+}
+
+// MOSTRAR OBSERVACIONES
+function mostrar() {
+  const lista = JSON.parse(localStorage.getItem("observaciones")) || [];
+  const div = document.getElementById("lista");
+
+  div.innerHTML = "<h4>Observaciones:</h4>";
+
+  lista.forEach(o => {
+    div.innerHTML += `
+      <p>
+      <b>${o.tipo}</b> (${o.prioridad})<br>
+      ${o.descripcion}
+      </p>
+    `;
+  });
+}
+
+mostrar();
+</script>
+
+</body>
+</html>
